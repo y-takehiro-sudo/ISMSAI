@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}送信前キュー - ISMS管理{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-slate-900">送信前キュー <span class="text-base font-normal text-slate-400 ml-1">draft: {{ total }}件</span></h1>
+  {% if total > 0 %}
+  <form method="post" action="/admin/queue/approve-all" onsubmit="return confirm('全件承認・送信します。よろしいですか？')">
+    <button class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150">一括承認・送信（{{ total }}件）</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if enriched %}
+<div class="space-y-3">
+  {% for row in enriched %}
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+    <div class="flex items-start justify-between gap-4">
+      <div class="flex-1">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-slate-100 text-slate-600">{{ row.item.space_type }}</span>
+          {% if row.task %}<span class="font-medium text-slate-700">{{ row.task.name }}</span>{% endif %}
+          <span class="text-xs text-slate-400">→ {{ row.target_user.name if row.target_user else row.item.target_user_id or "未設定" }}</span>
+        </div>
+        <p class="text-sm text-slate-600 whitespace-pre-wrap bg-slate-50 rounded-lg p-2 border border-slate-100">{{ row.item.message_body }}</p>
+        {% if row.item.scheduled_at %}
+        <p class="text-xs text-slate-400 mt-1">送信予定: {{ row.item.scheduled_at[:16].replace("T"," ") }}</p>
+        {% endif %}
+      </div>
+      <div class="flex flex-col gap-2 shrink-0">
+        <form method="post" action="/admin/queue/{{ row.item.id }}/approve">
+          <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150">承認・送信</button>
+        </form>
+        <a href="/admin/queue/{{ row.item.id }}/edit" class="text-center bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150">編集</a>
+        <form method="post" action="/admin/queue/{{ row.item.id }}/cancel" onsubmit="return confirm('却下しますか？')">
+          <button class="w-full border border-red-200 text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150">却下</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center text-slate-400">
+  承認待ちの通知はありません
+</div>
+{% endif %}
+{% endblock %}

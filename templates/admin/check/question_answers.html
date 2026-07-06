@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ q.title }} - 回答一覧{% endblock %}
+{% block content %}
+<div class="flex items-center gap-3 mb-4">
+  <a href="/admin/checks" class="text-blue-600 hover:underline text-sm">← 運用チェック一覧</a>
+  <h1 class="text-xl font-bold text-gray-800">{{ q.title }} - 回答一覧</h1>
+</div>
+
+<div class="bg-white rounded shadow overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-100 text-gray-600">
+      <tr>
+        <th class="px-4 py-2 text-left">ユーザー</th>
+        <th class="px-4 py-2 text-left">回答</th>
+        <th class="px-4 py-2 text-center">回答日時</th>
+        <th class="px-4 py-2 text-center">AI評価</th>
+        <th class="px-4 py-2 text-center">管理者評価</th>
+        <th class="px-4 py-2 text-center">ステータス</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for row in rows %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-2 font-medium">{{ row.user.name if row.user else "—" }}</td>
+        <td class="px-4 py-2 text-gray-700 max-w-xs">
+          {{ row.ans.answer_text or "—" }}
+          {% if row.ans.image_path %}
+          <a href="/uploads/{{ row.ans.image_path }}" target="_blank" class="text-blue-600 text-xs hover:underline">[画像]</a>
+          {% endif %}
+        </td>
+        <td class="px-4 py-2 text-center text-gray-500 text-xs">{{ row.ans.answered_at[:16] if row.ans.answered_at else "未回答" }}</td>
+        <td class="px-4 py-2 text-center">
+          {% if row.ans.ai_result %}
+          <span class="px-2 py-0.5 rounded text-xs {% if row.ans.ai_result == 'ok' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+            {{ "OK" if row.ans.ai_result == "ok" else "NG" }}
+          </span>
+          {% else %}<span class="text-gray-300">—</span>{% endif %}
+        </td>
+        <td class="px-4 py-2 text-center">
+          {% if row.ans.manager_result %}
+          <span class="px-2 py-0.5 rounded text-xs {% if row.ans.manager_result == 'ok' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+            {{ "OK" if row.ans.manager_result == "ok" else "NG" }}
+          </span>
+          {% else %}<span class="text-gray-300">—</span>{% endif %}
+        </td>
+        <td class="px-4 py-2 text-center">
+          {% set st = row.inst.status if row.inst else "—" %}
+          <span class="px-2 py-0.5 rounded text-xs
+            {% if st == 'evaluated' %}bg-green-100 text-green-700
+            {% elif st == 'answered' %}bg-blue-100 text-blue-700
+            {% else %}bg-gray-100 text-gray-600{% endif %}">
+            {% if st == 'evaluated' %}評価済み{% elif st == 'answered' %}回答済み{% else %}未回答{% endif %}
+          </span>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">回答がありません</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

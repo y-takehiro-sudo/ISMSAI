@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="flex items-center gap-3 mb-4">
+  <a href="/admin/checks" class="text-blue-600 hover:underline text-sm">← 質問一覧</a>
+  <h1 class="text-xl font-bold text-gray-800">{{ title }}</h1>
+</div>
+<form method="post" class="bg-white rounded shadow p-6 max-w-2xl space-y-4">
+  <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">質問タイトル <span class="text-red-500">*</span></label>
+    <input type="text" name="title" value="{{ q.title if q else '' }}" required class="w-full border rounded px-3 py-2 text-sm">
+  </div>
+  <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">補足説明</label>
+    <textarea name="description" rows="2" class="w-full border rounded px-3 py-2 text-sm">{{ q.description if q else '' }}</textarea>
+  </div>
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">回答形式</label>
+      <select name="answer_type" class="w-full border rounded px-3 py-2 text-sm">
+        <option value="yes_no" {% if not q or q.answer_type=='yes_no' %}selected{% endif %}>Yes / No</option>
+        <option value="text" {% if q and q.answer_type=='text' %}selected{% endif %}>テキスト入力</option>
+        <option value="image" {% if q and q.answer_type=='image' %}selected{% endif %}>画像提出</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">評価方法</label>
+      <select name="eval_type" id="eval_type" onchange="toggleCriteria()" class="w-full border rounded px-3 py-2 text-sm">
+        <option value="manager" {% if not q or q.eval_type=='manager' %}selected{% endif %}>👤 管理者が判定</option>
+        <option value="ai" {% if q and q.eval_type=='ai' %}selected{% endif %}>🤖 AIが自動判定</option>
+      </select>
+    </div>
+  </div>
+  <div id="criteria_block" class="{% if not q or q.eval_type != 'ai' %}hidden{% endif %}">
+    <label class="block text-sm font-medium text-gray-700 mb-1">AI判定基準 <span class="text-xs text-gray-400">（AIへの指示）</span></label>
+    <textarea name="ai_criteria" rows="3" placeholder="例：デスクトップにファイルが散乱していない状態をOKとする。ゴミ箱・ショートカット以外のファイルが見えていたらNG。"
+      class="w-full border rounded px-3 py-2 text-sm">{{ q.ai_criteria if q else '' }}</textarea>
+  </div>
+  <div class="grid grid-cols-3 gap-4">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">実施頻度</label>
+      <select name="frequency" class="w-full border rounded px-3 py-2 text-sm">
+        <option value="monthly" {% if not q or q.frequency=='monthly' %}selected{% endif %}>月次</option>
+        <option value="quarterly" {% if q and q.frequency=='quarterly' %}selected{% endif %}>四半期</option>
+        <option value="yearly" {% if q and q.frequency=='yearly' %}selected{% endif %}>年次</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">対象ロール</label>
+      <select name="target_role" class="w-full border rounded px-3 py-2 text-sm">
+        <option value="member" {% if not q or q.target_role=='member' %}selected{% endif %}>member</option>
+        <option value="admin" {% if q and q.target_role=='admin' %}selected{% endif %}>admin</option>
+        <option value="all" {% if q and q.target_role=='all' %}selected{% endif %}>全員</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">有効/無効</label>
+      <select name="is_active" class="w-full border rounded px-3 py-2 text-sm">
+        <option value="1" {% if not q or q.is_active %}selected{% endif %}>有効</option>
+        <option value="0" {% if q and not q.is_active %}selected{% endif %}>無効</option>
+      </select>
+    </div>
+  </div>
+  <div class="flex gap-3 pt-2">
+    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 text-sm">保存</button>
+    <a href="/admin/checks" class="bg-gray-200 text-gray-700 px-6 py-2 rounded hover:bg-gray-300 text-sm">キャンセル</a>
+  </div>
+</form>
+<script>
+function toggleCriteria() {
+  const v = document.getElementById('eval_type').value;
+  document.getElementById('criteria_block').classList.toggle('hidden', v !== 'ai');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ form.title if form else '運用チェック' }} - ISMS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen py-8 px-4">
+  <div class="max-w-2xl mx-auto">
+    <!-- ヘッダー -->
+    <div class="bg-blue-600 text-white rounded-t-xl p-6">
+      <h1 class="text-xl font-bold">{{ form.title if form else '運用チェック' }}</h1>
+      {% if form and form.description %}<p class="text-blue-100 text-sm mt-1">{{ form.description }}</p>{% endif %}
+      {% if user %}<p class="text-blue-200 text-xs mt-2">回答者: {{ user.name }} さん</p>{% endif %}
+      {% if form_inst.due_date %}<p class="text-blue-200 text-xs">期限: {{ form_inst.due_date }}</p>{% endif %}
+    </div>
+
+    {% if already_answered %}
+    <div class="bg-white rounded-b-xl shadow p-8 text-center">
+      <div class="text-4xl mb-3">✅</div>
+      <p class="text-green-700 font-bold text-lg">回答済みです</p>
+      <p class="text-gray-500 text-sm mt-2">ご回答ありがとうございました。</p>
+      <a href="/user/mypage" class="inline-block mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">← マイページに戻る</a>
+      {% if ans_map %}
+      <div class="mt-6 text-left space-y-3">
+        {% for item in questions_data %}
+        {% set q = item.q %}
+        {% set ans = ans_map.get(q.id) %}
+        {% if ans %}
+        <div class="bg-gray-50 rounded p-3">
+          <p class="text-xs text-gray-500 mb-1">Q{{ loop.index }}. {{ q.title }}</p>
+          {% if q.question_type == 'checkbox' %}
+          <p class="text-sm text-gray-800">{{ ans.answer_values_json }}</p>
+          {% else %}
+          <p class="text-sm text-gray-800">{{ ans.answer_value or "—" }}</p>
+          {% endif %}
+          {% if ans.manager_result %}
+          <span class="text-xs px-2 py-0.5 rounded {% if ans.manager_result == 'ok' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+            評価: {{ 'OK' if ans.manager_result == 'ok' else 'NG' }}
+          </span>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    {% else %}
+    <div class="bg-white border-b border-gray-100 px-6 py-3">
+      <a href="/user/mypage" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center gap-1">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        マイページに戻る
+      </a>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="bg-white rounded-b-xl shadow divide-y divide-gray-100">
+      {% for item in questions_data %}
+      {% set q = item.q %}
+      {% set opts = item.opts %}
+      <div class="p-6">
+        <div class="mb-3">
+          <label class="block font-medium text-gray-800">
+            Q{{ loop.index }}. {{ q.title }}
+            {% if q.required %}<span class="text-red-500 text-sm ml-1">*</span>{% endif %}
+          </label>
+          {% if q.description %}<p class="text-xs text-gray-500 mt-1">{{ q.description }}</p>{% endif %}
+        </div>
+
+        {% if q.question_type == 'radio' %}
+        <div class="space-y-2">
+          {% for opt in opts %}
+          <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-blue-50 has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50">
+            <input type="radio" name="q_{{ q.id }}" value="{{ opt }}" {% if q.required %}required{% endif %} class="text-blue-600">
+            <span class="text-sm text-gray-700">{{ opt }}</span>
+          </label>
+          {% endfor %}
+        </div>
+
+        {% elif q.question_type == 'checkbox' %}
+        <div class="space-y-2">
+          {% for opt in opts %}
+          <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-green-50 has-[:checked]:border-green-400 has-[:checked]:bg-green-50">
+            <input type="checkbox" name="q_{{ q.id }}" value="{{ opt }}" class="text-green-600">
+            <span class="text-sm text-gray-700">{{ opt }}</span>
+          </label>
+          {% endfor %}
+        </div>
+
+        {% elif q.question_type == 'dropdown' %}
+        <select name="q_{{ q.id }}" {% if q.required %}required{% endif %}
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:outline-none">
+          <option value="">— 選択してください —</option>
+          {% for opt in opts %}
+          <option value="{{ opt }}">{{ opt }}</option>
+          {% endfor %}
+        </select>
+
+        {% elif q.question_type == 'textarea' %}
+        <textarea name="q_{{ q.id }}" rows="4" {% if q.required %}required{% endif %}
+          placeholder="回答を入力してください..."
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:outline-none"></textarea>
+
+        {% elif q.question_type == 'file' %}
+        <input type="file" name="q_{{ q.id }}" {% if q.required %}required{% endif %}
+          class="w-full border rounded-lg px-3 py-2 text-sm">
+        <p class="text-xs text-gray-400 mt-1">ファイルを選択してください</p>
+
+        {% elif q.question_type == 'scale' %}
+        <div class="flex gap-3 mt-1">
+          {% for i in range(1, 6) %}
+          <label class="flex flex-col items-center gap-1 cursor-pointer">
+            <input type="radio" name="q_{{ q.id }}" value="{{ i }}" {% if q.required %}required{% endif %} class="text-blue-600">
+            <span class="text-sm font-medium text-gray-600">{{ i }}</span>
+          </label>
+          {% endfor %}
+          <div class="flex-1 flex justify-between items-center text-xs text-gray-400 ml-2">
+            <span>低い</span><span>高い</span>
+          </div>
+        </div>
+
+        {% else %}
+        <input type="text" name="q_{{ q.id }}" {% if q.required %}required{% endif %}
+          placeholder="回答を入力してください..."
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:outline-none">
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      {% if questions_data %}
+      <div class="p-6">
+        <button type="submit"
+          class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm">
+          回答を送信
+        </button>
+      </div>
+      {% else %}
+      <div class="p-6 text-center text-gray-400 text-sm">質問がありません</div>
+      {% endif %}
+    </form>
+    {% endif %}
+  </div>
+</body>
+</html>

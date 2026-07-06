@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+{% block title %}個別タスク - ISMS管理{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-slate-900">個別タスク</h1>
+</div>
+
+<!-- 完了タスク表示チェックボックス -->
+<div class="flex justify-end mb-3">
+  <form method="get" action="/admin/admin-tasks">
+    <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+      <input type="checkbox" name="show_completed" value="1" {% if show_completed == "1" %}checked{% endif %}
+        onchange="this.form.submit()"
+        class="rounded accent-indigo-600 w-4 h-4">
+      完了タスクも表示する
+    </label>
+  </form>
+</div>
+
+<!-- 上段：管理者向け / ユーザー向け -->
+<div class="grid grid-cols-2 gap-6 mb-6">
+
+  <!-- ① 管理者向けタスク -->
+  <div class="flex flex-col">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-base font-semibold text-slate-700">管理者向けタスク</h2>
+      <button onclick="toggleAddForm('admin')" class="bg-indigo-600 hover:bg-indigo-700 text-white w-8 h-8 rounded-lg text-lg font-bold flex items-center justify-center transition-colors">＋</button>
+    </div>
+
+    <!-- 追加フォーム（hidden） -->
+    <div id="add-admin" class="hidden bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-3">
+      <form method="post" action="/admin/admin-tasks/admin/new" class="space-y-2">
+        <input type="text" name="title" placeholder="タスク名 *" required
+          class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+        <textarea name="description" rows="2" placeholder="作業内容・備考"
+          class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white"></textarea>
+        <input type="date" name="due_date" placeholder="期限（任意）"
+          class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+        <div class="flex gap-2">
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium">追加</button>
+          <button type="button" onclick="toggleAddForm('admin')" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-1.5 rounded-lg text-sm font-medium">キャンセル</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto" style="max-height: 40vh;">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 sticky top-0 z-10">
+          <tr>
+            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">タスク名</th>
+            <th class="px-3 py-2 text-center text-xs font-semibold text-slate-500">期限</th>
+            <th class="px-3 py-2 text-center text-xs font-semibold text-slate-500">状態</th>
+            <th class="px-3 py-2"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for t in admin_tasks %}
+          {% set done = t.status == "done" %}
+          <tr class="hover:bg-slate-50 {% if done %}opacity-50{% endif %}">
+            <td class="px-3 py-2.5">
+              <p class="font-medium text-slate-800 text-sm {% if done %}line-through{% endif %}">{{ t.title }}</p>
+              {% if t.description %}<p class="text-xs text-slate-400 mt-0.5 truncate max-w-[160px]">{{ t.description }}</p>{% endif %}
+              {% if t.related_user_name %}<p class="text-xs text-purple-500 mt-0.5">対象: {{ t.related_user_name }}</p>{% endif %}
+            </td>
+            <td class="px-3 py-2.5 text-center text-xs text-slate-500">{{ t.due_date or "—" }}</td>
+            <td class="px-3 py-2.5 text-center">
+              <form method="post" action="/admin/admin-tasks/admin/{{ t.id }}/toggle-done" class="inline">
+                <button type="submit" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors
+                  {% if done %}bg-emerald-100 text-emerald-700 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">
+                  {% if done %}
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>完了
+                  {% else %}<span class="w-3 h-3 rounded-full border-2 border-slate-300 inline-block"></span>未完了{% endif %}
+                </button>
+              </form>
+            </td>
+            <td class="px-3 py-2.5">
+              <div class="flex items-center gap-1 justify-end">
+                <button onclick="toggleEdit('admin-{{ t.id }}')" class="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                </button>
+                <form method="post" action="/admin/admin-tasks/admin/{{ t.id }}/delete" class="inline" onsubmit="return confirm('削除しますか？')">
+                  <button type="submit" class="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <!-- インライン編集行 -->
+          <tr id="edit-admin-{{ t.id }}" class="hidden bg-indigo-50">
+            <td colspan="5" class="px-3 py-3">
+              <form method="post" action="/admin/admin-tasks/admin/{{ t.id }}/inline-update" class="space-y-2">
+                <input type="text" name="title" value="{{ t.title }}" required
+                  class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                <textarea name="description" rows="2" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">{{ t.description or '' }}</textarea>
+                <input type="date" name="due_date" value="{{ t.due_date or '' }}"
+                  class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                <div class="flex gap-2">
+                  <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium">保存</button>
+                  <button type="button" onclick="toggleEdit('admin-{{ t.id }}')" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-medium">キャンセル</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400 text-sm">管理者タスクはありません</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ② ユーザー向けタスク -->
+  <div class="flex flex-col">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-base font-semibold text-slate-700">ユーザー向けタスク</h2>
+      <button onclick="toggleAddForm('user')" class="bg-indigo-600 hover:bg-indigo-700 text-white w-8 h-8 rounded-lg text-lg font-bold flex items-center justify-center transition-colors">＋</button>
+    </div>
+
+    <!-- 追加フォーム（hidden） -->
+    <div id="add-user" class="hidden bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-3">
+      <form method="post" action="/admin/admin-tasks/user/new" class="space-y-2">
+        <input type="text" name="title" placeholder="タスク名 *" required
+          class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+        <textarea name="description" rows="2" placeholder="作業内容・備考"
+          class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white"></textarea>
+        <div class="grid grid-cols-2 gap-2">
+          <input type="date" name="start_date" placeholder="開始日"
+            class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+          <input type="date" name="end_date" placeholder="終了日"
+            class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+        </div>
+        <input type="url" name="url" placeholder="外部リンクURL（着手ボタン用）"
+          class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+        <label class="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+          <input type="checkbox" onchange="selectAll(this,'add-user-assignees')" class="rounded accent-indigo-600">全員選択
+        </label>
+        <select id="add-user-assignees" name="assignee_ids" multiple class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white h-20">
+          {% for u in users %}
+          <option value="{{ u.id }}">{{ u.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="flex gap-2">
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium">追加</button>
+          <button type="button" onclick="toggleAddForm('user')" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-1.5 rounded-lg text-sm font-medium">キャンセル</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-y-auto" style="max-height: 40vh;">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 sticky top-0 z-10">
+          <tr>
+            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">タスク名</th>
+            <th class="px-3 py-2 text-center text-xs font-semibold text-slate-500">期間</th>
+            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">担当者</th>
+            <th class="px-3 py-2 text-center text-xs font-semibold text-slate-500">状態</th>
+            <th class="px-3 py-2"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for t in user_tasks %}
+          {% set done = t.status == "done" %}
+          <tr class="hover:bg-slate-50 {% if done %}opacity-50{% endif %}">
+            <td class="px-3 py-2.5">
+              <p class="font-medium text-slate-800 text-sm {% if done %}line-through{% endif %}">{{ t.title }}</p>
+              {% if t.description %}<p class="text-xs text-slate-400 mt-0.5 truncate max-w-[140px]">{{ t.description }}</p>{% endif %}
+            </td>
+            <td class="px-3 py-2.5 text-center text-xs text-slate-500 whitespace-nowrap">
+              {% if t.start_date or t.end_date %}
+              {{ t.start_date or "?" }}<br><span class="text-slate-400">〜{{ t.end_date or "?" }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="px-3 py-2.5 text-xs text-slate-600">{{ assignees_map.get(t.id, [])|join(", ") or "—" }}</td>
+            <td class="px-3 py-2.5 text-center">
+              {% set a_count = assignee_ids_map.get(t.id, [])|length %}
+              <form method="post" action="/admin/admin-tasks/user/{{ t.id }}/toggle-done" class="inline">
+                <button type="submit" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors
+                  {% if done %}bg-emerald-100 text-emerald-700 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">
+                  {% if done %}
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>完了
+                  {% else %}<span class="w-3 h-3 rounded-full border-2 border-slate-300 inline-block"></span>未完了{% endif %}
+                </button>
+              </form>
+              {% if a_count > 0 %}
+              {% set d_count = done_count_map.get(t.id, 0) %}
+              <div class="text-xs mt-1 {% if d_count == a_count %}text-emerald-600 font-medium{% else %}text-slate-400{% endif %}">
+                {{ d_count }}/{{ a_count }}人
+              </div>
+              {% endif %}
+            </td>
+            <td class="px-3 py-2.5">
+              <div class="flex items-center gap-1 justify-end">
+                <a href="/admin/admin-tasks/user/{{ t.id }}" class="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors" title="対応状況を見る">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                </a>
+                <button onclick="toggleEdit('user-{{ t.id }}')" class="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                </button>
+                <form method="post" action="/admin/admin-tasks/user/{{ t.id }}/delete" class="inline" onsubmit="return confirm('削除しますか？')">
+                  <button type="submit" class="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <!-- インライン編集行 -->
+          <tr id="edit-user-{{ t.id }}" class="hidden bg-indigo-50">
+            <td colspan="5" class="px-3 py-3">
+              <form method="post" action="/admin/admin-tasks/user/{{ t.id }}/inline-update" class="space-y-2">
+                <input type="text" name="title" value="{{ t.title }}" required
+                  class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                <textarea name="description" rows="2" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">{{ t.description or '' }}</textarea>
+                <div class="grid grid-cols-2 gap-2">
+                  <input type="date" name="start_date" value="{{ t.start_date or '' }}"
+                    class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                  <input type="date" name="end_date" value="{{ t.end_date or '' }}"
+                    class="border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                </div>
+                <input type="url" name="url" value="{{ t.url or '' }}" placeholder="外部リンクURL（着手ボタン用）"
+                  class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                <label class="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
+                  <input type="checkbox" onchange="selectAll(this,'edit-user-assignees-{{ t.id }}')" class="rounded accent-indigo-600">全員選択
+                </label>
+                <select id="edit-user-assignees-{{ t.id }}" name="assignee_ids" multiple class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none h-20">
+                  {% for u in users %}
+                  <option value="{{ u.id }}" {% if u.id in assignee_ids_map.get(t.id, []) %}selected{% endif %}>{{ u.name }}</option>
+                  {% endfor %}
+                </select>
+                <div class="flex gap-2">
+                  <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium">保存</button>
+                  <button type="button" onclick="toggleEdit('user-{{ t.id }}')" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-medium">キャンセル</button>
+                </div>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400 text-sm">ユーザータスクはありません</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 下段：トリガーマスタ -->
+<div>
+  <div class="flex items-center justify-between mb-3">
+    <div>
+      <h2 class="text-base font-semibold text-slate-700">AIアラートマスタ</h2>
+      <p class="text-xs text-slate-400 mt-0.5">退職・入社などのイベント発生時にAIが自動生成するタスクのテンプレートです</p>
+    </div>
+    <button onclick="toggleAddForm('master')" class="bg-indigo-600 hover:bg-indigo-700 text-white w-8 h-8 rounded-lg text-lg font-bold flex items-center justify-center transition-colors">＋</button>
+  </div>
+
+  <!-- 追加フォーム（hidden） -->
+  <div id="add-master" class="hidden bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-3">
+    <form method="post" action="/admin/admin-tasks/master/new" class="grid grid-cols-4 gap-3 items-end">
+      <div class="col-span-2">
+        <label class="block text-xs font-medium text-slate-600 mb-1">タスク名 *</label>
+        <input type="text" name="title" placeholder="例: Googleアカウント停止" required
+          class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">トリガー</label>
+        <select name="trigger_event" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+          <option value="retired">退職</option>
+          <option value="leave">休職</option>
+          <option value="joined">入社</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">担当者区分</label>
+        <select name="assignee_role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+          <option value="admin">管理者</option>
+          <option value="member">一般ユーザー</option>
+          <option value="all">全員</option>
+        </select>
+      </div>
+      <div class="col-span-2">
+        <label class="block text-xs font-medium text-slate-600 mb-1">作業内容・備考</label>
+        <input type="text" name="description" placeholder="省略可"
+          class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+      </div>
+      <div class="col-span-2 flex gap-2 items-end">
+        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">追加</button>
+        <button type="button" onclick="toggleAddForm('master')" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium">キャンセル</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">タスク名</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">作業内容</th>
+          <th class="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">トリガー</th>
+          <th class="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">担当区分</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for tpl in alert_templates %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-2.5 font-medium text-slate-800">{{ tpl.title }}</td>
+          <td class="px-4 py-2.5 text-slate-500 text-xs max-w-xs truncate">{{ tpl.description or "—" }}</td>
+          <td class="px-4 py-2.5 text-center">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold
+              {% if tpl.trigger_event == 'retired' %}bg-red-100 text-red-700
+              {% elif tpl.trigger_event == 'leave' %}bg-amber-100 text-amber-700
+              {% elif tpl.trigger_event == 'joined' %}bg-emerald-100 text-emerald-700
+              {% else %}bg-slate-100 text-slate-600{% endif %}">
+              {% if tpl.trigger_event == 'retired' %}退職
+              {% elif tpl.trigger_event == 'leave' %}休職
+              {% elif tpl.trigger_event == 'joined' %}入社
+              {% else %}{{ tpl.trigger_event }}{% endif %}
+            </span>
+          </td>
+          <td class="px-4 py-2.5 text-center text-xs text-slate-600">
+            {% if tpl.assignee_role == 'admin' %}管理者
+            {% elif tpl.assignee_role == 'member' %}一般ユーザー
+            {% else %}全員{% endif %}
+          </td>
+          <td class="px-4 py-2.5">
+            <div class="flex items-center gap-1 justify-end">
+              <button onclick="toggleEdit('master-{{ tpl.id }}')" class="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+              </button>
+              <form method="post" action="/admin/admin-tasks/master/{{ tpl.id }}/delete" class="inline" onsubmit="return confirm('削除しますか？')">
+                <button type="submit" class="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <!-- インライン編集行 -->
+        <tr id="edit-master-{{ tpl.id }}" class="hidden bg-indigo-50">
+          <td colspan="6" class="px-4 py-3">
+            <form method="post" action="/admin/admin-tasks/master/{{ tpl.id }}/inline-update" class="grid grid-cols-4 gap-3 items-end">
+              <div class="col-span-2">
+                <label class="block text-xs font-medium text-slate-600 mb-1">タスク名 *</label>
+                <input type="text" name="title" value="{{ tpl.title }}" required
+                  class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">トリガー</label>
+                <select name="trigger_event" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                  <option value="retired" {% if tpl.trigger_event == 'retired' %}selected{% endif %}>退職</option>
+                  <option value="leave" {% if tpl.trigger_event == 'leave' %}selected{% endif %}>休職</option>
+                  <option value="joined" {% if tpl.trigger_event == 'joined' %}selected{% endif %}>入社</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">担当者区分</label>
+                <select name="assignee_role" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                  <option value="admin" {% if tpl.assignee_role == 'admin' %}selected{% endif %}>管理者</option>
+                  <option value="member" {% if tpl.assignee_role == 'member' %}selected{% endif %}>一般ユーザー</option>
+                  <option value="all" {% if tpl.assignee_role == 'all' %}selected{% endif %}>全員</option>
+                </select>
+              </div>
+              <div class="col-span-2">
+                <label class="block text-xs font-medium text-slate-600 mb-1">作業内容・備考</label>
+                <input type="text" name="description" value="{{ tpl.description or '' }}"
+                  class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+              </div>
+              <div class="col-span-2 flex gap-2 items-end">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium">保存</button>
+                <button type="button" onclick="toggleEdit('master-{{ tpl.id }}')" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-medium">キャンセル</button>
+              </div>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400 text-sm">AIアラートマスタが未設定です。「＋」から追加してください。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function toggleAddForm(type) {
+  const el = document.getElementById('add-' + type);
+  if (el) el.classList.toggle('hidden');
+}
+function toggleEdit(id) {
+  const el = document.getElementById('edit-' + id);
+  if (el) el.classList.toggle('hidden');
+}
+function selectAll(cb, selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  Array.from(sel.options).forEach(o => o.selected = cb.checked);
+}
+</script>
+{% endblock %}

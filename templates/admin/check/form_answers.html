@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}回答確認 - {{ form.title }}{% endblock %}
+{% block content %}
+<div class="flex items-center gap-3 mb-4">
+  <a href="/admin/checks" class="text-blue-600 hover:underline text-sm">← 運用チェック一覧</a>
+  <h1 class="text-xl font-bold text-gray-800">回答確認: {{ form.title }}</h1>
+</div>
+
+{% if not questions %}
+<div class="bg-white rounded shadow p-8 text-center text-gray-400">質問が設定されていません</div>
+{% elif not rows %}
+<div class="bg-white rounded shadow p-8 text-center text-gray-400">まだ回答がありません</div>
+{% else %}
+
+<!-- 月別合格率推移 -->
+{% if trend_months %}
+<div class="bg-white rounded shadow p-4 mb-6">
+  <h3 class="text-base font-bold text-gray-700 mb-3">月別合格率推移</h3>
+  <div class="overflow-x-auto">
+    <table class="text-sm">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-3 py-2 text-left">ユーザー</th>
+          {% for month_key in trend_months %}
+          <th class="px-3 py-2 text-center text-xs">{{ month_key }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for user_id, monthly in trend_data.items() %}
+        <tr>
+          <td class="px-3 py-2 font-medium">{{ users_map.get(user_id).name if users_map.get(user_id) else user_id }}</td>
+          {% for month_key in trend_months %}
+          {% set mdata = monthly.get(month_key) %}
+          <td class="px-3 py-2 text-center text-xs">
+            {% if mdata %}
+            <span class="font-medium {% if mdata.passed_pct >= (form.pass_score or 80) %}text-green-700{% else %}text-red-600{% endif %}">
+              {{ mdata.passed_pct }}%
+            </span>
+            <div class="text-gray-400">{{ mdata.passed }}/{{ mdata.total }}回</div>
+            {% else %}—{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="bg-white rounded shadow overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-100 text-gray-600">
+      <tr>
+        <th class="px-4 py-2 text-left">回答者</th>
+        <th class="px-4 py-2 text-center">期限</th>
+        <th class="px-4 py-2 text-center">状況</th>
+        <th class="px-4 py-2 text-center">合計スコア</th>
+        {% for q in questions %}
+        <th class="px-3 py-2 text-center min-w-32 text-xs">Q{{ loop.index }}: {{ q.title[:15] }}{% if q.title|length > 15 %}…{% endif %}</th>
+        {% endfor %}
+        <th class="px-4 py-2 text-center">登録日</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for row in rows %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium">{{ row.user.name if row.user else "—" }}</td>
+        <td class="px-4 py-2 text-center text-xs text-gray-500">{{ row.inst.due_date or "—" }}</td>
+        <td class="px-4 py-2 text-center">
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold
+            {% if row.inst.status == 'evaluated' %}bg-green-100 text-green-700
+            {% elif row.inst.status == 'answered' %}bg-blue-100 text-blue-700
+            {% else %}bg-gray-100 text-gray-500{% endif %}">
+            {% if row.inst.status == 'evaluated' %}評価済
+            {% elif row.inst.status == 'answered' %}回答済
+            {% else %}未回答{% endif %}
+          </span>
+        </td>
+        <td class="px-4 py-2 text-center text-xs">
+          {% if row.max_score > 0 %}
+          <div class="font-semibold {% if row.passed %}text-green-700{% else %}text-red-600{% endif %}">
+            {{ row.total_score }}/{{ row.max_score }}点
+          </div>
+          <div class="text-gray-400">{{ row.pass_pct }}%</div>
+          <span class="px-1.5 py-0.5 rounded text-xs {% if row.passed %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-600{% endif %}">
+            {% if row.passed %}合格{% else %}不合格{% endif %}
+          </span>
+          {% else %}
+          <span class="text-gray-300">—</span>
+          {% endif %}
+        </td>
+        {% for q in questions %}
+        {% set ans = row.ans_map.get(q.id) %}
+        <td class="px-3 py-2 text-center text-xs">
+          {% if ans %}
+            {% if q.question_type == 'file' %}
+              {% if ans.file_path %}<a href="/uploads/{{ ans.file_path }}" target="_blank" class="text-blue-600 hover:underline">ファイル</a>{% else %}—{% endif %}
+            {% elif q.question_type == 'checkbox' %}
+              <span class="text-gray-700">{{ ans.answer_values_json }}</span>
+            {% else %}
+              <span class="text-gray-700">{{ ans.answer_value[:30] if ans.answer_value else "—" }}</span>
+            {% endif %}
+            {% if q.score_weight %}
+            <div class="text-gray-400 mt-0.5">{{ ans.score or 0 }}/{{ q.score_weight }}点</div>
+            {% endif %}
+            {% if q.eval_type == 'manager' %}
+            <div class="mt-1">
+              {% if ans.manager_result %}
+              <span class="px-1.5 py-0.5 rounded text-xs {% if ans.manager_result == 'ok' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+                {{ 'OK' if ans.manager_result == 'ok' else 'NG' }}
+              </span>
+              {% if ans.manager_comment %}<p class="text-gray-400 mt-0.5">{{ ans.manager_comment }}</p>{% endif %}
+              {% else %}
+              <details class="relative">
+                <summary class="cursor-pointer text-gray-400 hover:text-gray-700 text-xs">評価する</summary>
+                <div class="absolute left-0 z-20 mt-1 bg-white border rounded shadow p-3 min-w-48">
+                  <form method="post" action="/admin/checks/answers/{{ ans.id }}/evaluate" class="space-y-2">
+                    <select name="manager_result" class="border rounded px-2 py-1 text-xs w-full">
+                      <option value="ok">OK</option>
+                      <option value="ng">NG</option>
+                    </select>
+                    <input type="text" name="manager_comment" placeholder="コメント（任意）"
+                      class="border rounded px-2 py-1 text-xs w-full">
+                    <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded text-xs w-full">評価確定</button>
+                  </form>
+                </div>
+              </details>
+              {% endif %}
+            </div>
+            {% endif %}
+          {% else %}
+          <span class="text-gray-300">—</span>
+          {% endif %}
+        </td>
+        {% endfor %}
+        <td class="px-4 py-2 text-center text-xs text-gray-400">{{ row.inst.created_at[:10] if row.inst.created_at else "" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

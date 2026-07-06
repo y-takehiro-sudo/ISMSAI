@@ -1,0 +1,277 @@
+{% extends "user/base.html" %}
+{% block title %}マイポータル - ISMS{% endblock %}
+{% block content %}
+
+<!-- ページヘッダー -->
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900">{{ user.name }} さんのポータル</h1>
+    <p class="text-sm text-slate-500 mt-0.5">{{ user.emp_type or "社員" }} &nbsp;·&nbsp; {{ user.role == "admin" and "管理者" or "メンバー" }}</p>
+  </div>
+</div>
+
+{% if user.is_manager %}
+<div class="mb-6 bg-purple-50 border border-purple-200 rounded-xl p-4 flex items-center justify-between">
+  <div>
+    <p class="text-sm font-semibold text-purple-800">責任者メニュー</p>
+    <p class="text-xs text-purple-600 mt-0.5">{{ user.org_name }} の部下を評価できます</p>
+  </div>
+  <a href="/user/manager-eval" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">評価者評価を行う</a>
+</div>
+{% endif %}
+
+<!-- ① 過去実績（最上部） -->
+<section class="mb-4">
+  <h2 class="text-base font-semibold text-slate-700 mb-3">過去の実績</h2>
+  <div class="grid grid-cols-2 gap-6">
+
+    <!-- 完了タスク実績 -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" style="max-height: 38vh; overflow-y: auto;">
+      <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
+        <span class="text-sm font-semibold text-slate-700">完了タスク</span>
+        <span class="text-xs text-slate-400">直近{{ past_tasks|length }}件</span>
+      </div>
+      {% if past_tasks %}
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 sticky top-12 z-10">
+          <tr>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">タスク名</th>
+            <th class="px-4 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">期限</th>
+            <th class="px-4 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">報告日</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for row in past_tasks %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-2.5 text-slate-700 font-medium">{{ row.name }}</td>
+            <td class="px-4 py-2.5 text-center text-slate-500 text-xs">{{ row.due_date or "—" }}</td>
+            <td class="px-4 py-2.5 text-center">
+              {% if row.reported_at %}
+              <span class="text-emerald-600 text-xs font-medium">{{ row.reported_at }}</span>
+              {% else %}
+              <span class="text-slate-300 text-xs">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="px-4 py-8 text-center text-slate-400 text-sm">完了タスクはまだありません</div>
+      {% endif %}
+    </div>
+
+    <!-- 運用チェック実績 -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden" style="max-height: 38vh; overflow-y: auto;">
+      <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
+        <span class="text-sm font-semibold text-slate-700">運用チェック回答実績</span>
+        <span class="text-xs text-slate-400">直近{{ past_surveys|length }}件</span>
+      </div>
+      {% if past_surveys %}
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 sticky top-12 z-10">
+          <tr>
+            <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">チェック名</th>
+            <th class="px-4 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">期限</th>
+            <th class="px-4 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">結果</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for row in past_surveys %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-2.5 text-slate-700 font-medium">{{ row.title }}</td>
+            <td class="px-4 py-2.5 text-center text-slate-500 text-xs">{{ row.due_date or "—" }}</td>
+            <td class="px-4 py-2.5 text-center">
+              {% if row.result == "ok" %}
+              <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                {% if row.score_pct is defined and row.score_pct is not none %}{{ row.score_pct }}点{% else %}OK{% endif %}
+              </span>
+              {% elif row.result == "ng" %}
+              <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                {% if row.score_pct is defined and row.score_pct is not none %}{{ row.score_pct }}点{% else %}NG{% endif %}
+              </span>
+              {% else %}
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">評価待ち</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="px-4 py-8 text-center text-slate-400 text-sm">回答実績はまだありません</div>
+      {% endif %}
+    </div>
+
+  </div>
+</section>
+
+<!-- ② 下段2分割: 未完了タスク（左）+ 未対応調査（右） -->
+<div class="grid grid-cols-2 gap-6">
+
+  <!-- 未完了タスク -->
+  <section>
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-base font-semibold text-slate-700">未完了タスク</h2>
+      {% if pending_tasks or pending_user_tasks %}
+      <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">{{ (pending_tasks|length) + (pending_user_tasks|length) }}件</span>
+      {% endif %}
+    </div>
+
+    <div class="overflow-y-auto pr-1" style="max-height: 45vh;">
+    {% if pending_tasks or pending_user_tasks %}
+    <div class="space-y-3">
+      {% for ut in pending_user_tasks %}
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-slate-800 text-sm truncate">{{ ut.title }}</p>
+            <div class="flex items-center gap-2 mt-1.5">
+              <span class="text-xs text-slate-400">期限: {{ ut.end_date or "—" }}</span>
+              <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">個別タスク</span>
+            </div>
+          </div>
+          <div class="flex-shrink-0 flex flex-col items-end gap-1.5">
+            {% if ut.url %}
+            <a href="{{ ut.url }}" target="_blank" rel="noopener noreferrer"
+               class="inline-block bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+              着手
+            </a>
+            {% endif %}
+            <button type="button" onclick="toggleUserReport('{{ ut.id }}')"
+              class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+              完了報告する
+            </button>
+          </div>
+        </div>
+        <div id="user-report-{{ ut.id }}" class="hidden mt-3 pt-3 border-t border-slate-100">
+          <form method="post" action="/user/user-task-done" class="space-y-2">
+            <input type="hidden" name="task_id" value="{{ ut.id }}">
+            <textarea name="comment" rows="2" placeholder="コメント（任意）"
+              class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none resize-none"></textarea>
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-colors w-full">完了として報告する</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+      {% for row in pending_tasks %}
+      {% set iid = row.instance.id %}
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-slate-800 text-sm truncate">{{ row.task.name if row.task else "?" }}</p>
+            <div class="flex items-center gap-2 mt-1.5">
+              <span class="text-xs text-slate-400">期限: {{ row.instance.due_date or "—" }}</span>
+              <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                {% if row.instance.status == 'in_progress' %}bg-indigo-100 text-indigo-700
+                {% else %}bg-slate-100 text-slate-500{% endif %}">
+                {{ "対応中" if row.instance.status == 'in_progress' else "未着手" }}
+              </span>
+            </div>
+          </div>
+          <div class="flex-shrink-0 flex flex-col items-end gap-1.5">
+            {% if row.task and row.task.url %}
+            <a href="{{ row.task.url }}" target="_blank" rel="noopener noreferrer"
+               onclick="fetch('/user/task-start',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'instance_id={{ iid }}'}).catch(()=>{})"
+               class="inline-block bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+              {% if row.instance.status == 'in_progress' %}外部リンクを開く{% else %}着手{% endif %}
+            </a>
+            {% endif %}
+            {% if row.report and row.report.reported_at %}
+            <span class="flex items-center gap-1 text-emerald-600 text-xs font-medium">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+              報告済み
+            </span>
+            {% else %}
+            <button type="button" onclick="toggleReport('{{ iid }}')"
+              class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+              完了報告する
+            </button>
+            {% endif %}
+          </div>
+        </div>
+        <!-- 完了報告フォーム（折りたたみ） -->
+        <div id="report-{{ iid }}" class="hidden mt-3 pt-3 border-t border-slate-100">
+          <form method="post" action="/user/task-complete" class="space-y-2">
+            <input type="hidden" name="instance_id" value="{{ iid }}">
+            <textarea name="comment" rows="2" placeholder="コメント（任意）"
+              class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none resize-none"></textarea>
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-xs font-medium transition-colors w-full">完了として報告する</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center">
+      <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
+        <svg class="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+        </svg>
+      </div>
+      <p class="text-slate-500 text-sm font-medium">未完了タスクはありません</p>
+      <p class="text-slate-400 text-xs mt-1">すべてのタスクが完了しています</p>
+    </div>
+    {% endif %}
+    </div>
+  </section>
+
+  <!-- 未対応調査 -->
+  <section>
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-base font-semibold text-slate-700">未対応調査</h2>
+      {% if pending_surveys %}
+      <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">{{ pending_surveys|length }}件</span>
+      {% endif %}
+    </div>
+
+    <div class="overflow-y-auto pr-1" style="max-height: 45vh;">
+    {% if pending_surveys %}
+    <div class="space-y-3">
+      {% for row in pending_surveys %}
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-slate-800 text-sm truncate">{{ row.title }}</p>
+            <p class="text-xs text-slate-400 mt-1.5">回答期限: {{ row.due_date or "—" }}</p>
+          </div>
+          {% if row.answer_url %}
+          <a href="{{ row.answer_url }}"
+             class="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+            回答する
+          </a>
+          {% else %}
+          <span class="text-slate-300 text-xs flex-shrink-0">URLなし</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center">
+      <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
+        <svg class="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75"/>
+        </svg>
+      </div>
+      <p class="text-slate-500 text-sm font-medium">未対応の調査はありません</p>
+      <p class="text-slate-400 text-xs mt-1">すべての調査に回答済みです</p>
+    </div>
+    {% endif %}
+    </div>
+  </section>
+
+</div>
+<script>
+function toggleReport(iid) {
+  const el = document.getElementById('report-' + iid);
+  if (el) el.classList.toggle('hidden');
+}
+function toggleUserReport(tid) {
+  const el = document.getElementById('user-report-' + tid);
+  if (el) el.classList.toggle('hidden');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - ISMS管理{% endblock %}
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="/admin/users" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1">← ユーザー一覧</a>
+  <h1 class="text-2xl font-bold text-slate-900">{{ title }}</h1>
+</div>
+<form method="post" class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 max-w-2xl space-y-4">
+  <!-- Group 1: 氏名 + ログインID -->
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <label class="flex items-center text-sm font-medium text-slate-700 mb-1">氏名 <span class="text-red-500">*</span>
+        <button type="button" class="tip-btn" data-tip="システムに登録される表示名です。一覧や通知メッセージに表示されます。">?</button>
+      </label>
+      <input type="text" name="name" value="{{ user.name if user else '' }}" required
+        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+    </div>
+    <div>
+      <label class="flex items-center text-sm font-medium text-slate-700 mb-1">ログインID
+        <button type="button" class="tip-btn" data-tip="管理画面へのログインに使用するIDです。英数字・ドット・ハイフンのみ使用可。例：taro.yamada。登録後の変更は担当者に通知してください。">?</button>
+      </label>
+      <input type="text" name="login_id" value="{{ user.login_id if user else '' }}"
+        placeholder="例: taro.yamada" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+    </div>
+  </div>
+  <!-- Group 2: Google Chat ユーザーID (full-width) -->
+  <div>
+    <label class="flex items-center text-sm font-medium text-slate-700 mb-1">Google Chat ユーザーID
+      <button type="button" class="tip-btn" data-tip="Google Chat で通知を送信するために必要なユーザーIDです。Google Chat の管理画面から「users/XXXXXXXXXX」形式で確認できます。通知を使用しない場合は空欄で構いません。">?</button>
+    </label>
+    <input type="text" name="google_chat_user_id" value="{{ user.google_chat_user_id if user else '' }}"
+      placeholder="users/XXXXXXXXXX" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+    <p class="text-xs text-slate-400 mt-1">Google Chat の users/XXXXXXXXXX 形式</p>
+  </div>
+  <!-- Group 3: 社員区分 + ロール -->
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <label class="flex items-center text-sm font-medium text-slate-700 mb-1">社員区分
+        <button type="button" class="tip-btn" data-tip="雇用形態を選択します。ISMSの対象範囲や権限管理の参考として使用されます。">?</button>
+      </label>
+      <select name="emp_type" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+        {% set current_emp_type = user.emp_type if user and user.emp_type else "正社員" %}
+        <option value="正社員" {% if current_emp_type == '正社員' %}selected{% endif %}>正社員</option>
+        <option value="契約社員/嘱託社員" {% if current_emp_type == '契約社員/嘱託社員' %}selected{% endif %}>契約社員/嘱託社員</option>
+        <option value="パート/アルバイト" {% if current_emp_type == 'パート/アルバイト' %}selected{% endif %}>パート/アルバイト</option>
+        <option value="派遣社員" {% if current_emp_type == '派遣社員' %}selected{% endif %}>派遣社員</option>
+        <option value="SES/準委任契約" {% if current_emp_type == 'SES/準委任契約' %}selected{% endif %}>SES/準委任契約</option>
+        <option value="請負契約" {% if current_emp_type == '請負契約' %}selected{% endif %}>請負契約</option>
+        <option value="出向社員" {% if current_emp_type == '出向社員' %}selected{% endif %}>出向社員</option>
+      </select>
+    </div>
+    <div>
+      <label class="flex items-center text-sm font-medium text-slate-700 mb-1">ロール
+        <button type="button" class="tip-btn" data-tip="メンバー：一般ユーザー。ポータル画面からタスク報告・運用チェック回答のみ可能。管理者：すべての管理画面にアクセスでき、タスク設定・ユーザー管理などの操作が可能。">?</button>
+      </label>
+      <select name="role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+        <option value="member" {% if not user or user.role == 'member' %}selected{% endif %}>メンバー</option>
+        <option value="admin" {% if user and user.role == 'admin' %}selected{% endif %}>管理者</option>
+      </select>
+    </div>
+  </div>
+  <!-- Group 4: 在籍 + 組織名 -->
+  <div class="grid grid-cols-2 gap-4">
+    <div>
+      <label class="flex items-center text-sm font-medium text-slate-700 mb-1">在籍
+        <button type="button" class="tip-btn" data-tip="在籍中のユーザーのみログインおよび通知の対象になります。退職した場合は「退職」に変更してください。">?</button>
+      </label>
+      <select name="is_active" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+        <option value="1" {% if not user or user.is_active %}selected{% endif %}>在籍</option>
+        <option value="0" {% if user and not user.is_active %}selected{% endif %}>退職</option>
+      </select>
+    </div>
+    <div>
+      <label class="flex items-center text-sm font-medium text-slate-700 mb-1">組織名（部門）
+        <button type="button" class="tip-btn" data-tip="所属する組織・部門名を入力します。同じ名称を入力したユーザーは同じ部門として扱われます。運用チェックの評価者評価機能で使用します。例：情報システム部、営業部">?</button>
+      </label>
+      <input type="text" name="org_name" value="{{ user.org_name if user and user.org_name else '' }}"
+        placeholder="例: 情報システム部"
+        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+    </div>
+  </div>
+  <!-- Group 5: 責任者フラグ (full-width) -->
+  <div class="flex items-center gap-3">
+    <label class="flex items-center gap-2 cursor-pointer">
+      <input type="checkbox" name="is_manager" value="1"
+        {% if user and user.is_manager %}checked{% endif %}
+        class="rounded accent-indigo-600 w-4 h-4">
+      <span class="text-sm font-medium text-slate-700">責任者フラグ</span>
+    </label>
+    <button type="button" class="tip-btn" data-tip="チェックを入れると、この人が評価者評価の質問において、同じ組織のメンバーを評価できるようになります。評価者のポータル画面に専用の評価テーブルが表示されます。">?</button>
+  </div>
+  <div class="flex gap-3 pt-2">
+    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors duration-150">保存</button>
+    <a href="/admin/users" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-5 py-2 rounded-lg text-sm font-medium transition-colors duration-150">キャンセル</a>
+  </div>
+</form>
+{% endblock %}

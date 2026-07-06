@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}その他 - ISMS管理{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-slate-900">その他</h1>
+</div>
+
+<div class="space-y-6">
+
+<!-- セクション1: ユーザー管理 -->
+<div>
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="text-base font-semibold text-slate-700">ユーザー管理</h2>
+    <a href="/admin/users/new" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150">＋ 新規作成</a>
+  </div>
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">氏名</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">ログインID</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">社員区分</th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">ロール</th>
+          <th class="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">有効</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for u in users %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-4 py-2.5 font-medium text-slate-700">{{ u.name }}</td>
+          <td class="px-4 py-2.5 text-slate-500 text-sm">{{ u.login_id or "—" }}</td>
+          <td class="px-4 py-2.5 text-xs text-slate-500">{{ u.emp_type or "正社員" }}</td>
+          <td class="px-4 py-2.5">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium {% if u.role == 'admin' %}bg-indigo-100 text-indigo-700{% else %}bg-slate-100 text-slate-600{% endif %}">
+              {{ "管理者" if u.role == "admin" else "メンバー" }}
+            </span>
+          </td>
+          <td class="px-4 py-2.5 text-center">
+            {% if u.is_active %}<span class="text-emerald-500">●</span>{% else %}<span class="text-slate-300">○</span>{% endif %}
+          </td>
+          <td class="px-4 py-2.5">
+            <a href="/admin/users/{{ u.id }}" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors">編集</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">ユーザーがいません</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- セクション2: 操作ログ -->
+<div>
+  <h2 class="text-base font-semibold text-slate-700 mb-3">操作ログ</h2>
+  <form method="get" class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-4 flex flex-wrap gap-4 items-end">
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1">ユーザー</label>
+      <select name="user_id" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+        <option value="">すべて</option>
+        {% for u in users %}
+        <option value="{{ u.id }}" {% if filter_user == u.id %}selected{% endif %}>{{ u.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-500 mb-1">操作</label>
+      <select name="action" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+        <option value="">すべて</option>
+        {% for a in actions %}
+        <option value="{{ a }}" {% if filter_action == a %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150">絞り込み</button>
+    <a href="/admin/others" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors self-end">リセット</a>
+  </form>
+
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">日時</th>
+          <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">ユーザー</th>
+          <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">操作</th>
+          <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">対象</th>
+          <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">詳細</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for entry in logs %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-3 py-2.5 text-slate-400 text-xs whitespace-nowrap">{{ entry.log.created_at[:16] }}</td>
+          <td class="px-3 py-2.5 text-slate-700 text-sm">{{ entry.log.user_name or "—" }}</td>
+          <td class="px-3 py-2.5">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium
+              {% if entry.color == 'green' %}bg-emerald-100 text-emerald-700
+              {% elif entry.color == 'red' %}bg-red-100 text-red-700
+              {% elif entry.color == 'blue' %}bg-indigo-100 text-indigo-700
+              {% elif entry.color == 'purple' %}bg-purple-100 text-purple-700
+              {% elif entry.color == 'orange' %}bg-amber-100 text-amber-700
+              {% else %}bg-slate-100 text-slate-600{% endif %}">
+              {{ entry.label }}
+            </span>
+          </td>
+          <td class="px-3 py-2.5 text-slate-500 text-xs">{{ entry.log.target or "—" }}</td>
+          <td class="px-3 py-2.5 text-slate-400 text-xs max-w-xs truncate">{{ entry.log.detail or "" }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="px-3 py-8 text-center text-slate-400">ログがありません</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+# ─────────────────────────────────────────────
+# Dockerイメージに含めないファイル
+# ─────────────────────────────────────────────
+
+# 機密情報
+.env
+credentials.json
+
+# データベース（本番はvolumeマウントで管理）
+*.db
+*.sqlite
+
+# ログ・アップロード（本番はvolumeマウントで管理）
+logs/
+uploads/
+
+# Python キャッシュ
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# 開発用ファイル
+.git/
+.gitignore
+.dockerignore
+*.md
+test_*.py
+insert_test_data.py
+
+# IDE
+.vscode/
+.idea/

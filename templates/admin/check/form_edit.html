@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - ISMS管理{% endblock %}
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="/admin/checks" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1">← 運用チェック一覧</a>
+  <h1 class="text-2xl font-bold text-slate-900">{{ title }}</h1>
+</div>
+
+<div class="max-w-3xl space-y-6">
+
+  <!-- フォーム基本設定 -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+    <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-4">フォーム設定</h2>
+    <form method="post" action="{% if form %}/admin/checks/{{ form.id }}/update{% else %}/admin/checks/new{% endif %}" class="space-y-4">
+      <div>
+        <label class="flex items-center text-sm font-medium text-slate-700 mb-1">フォームタイトル <span class="text-red-500">*</span>
+          <button type="button" class="tip-btn" data-tip="運用チェックの名称。一覧や担当者への通知に表示されます。例：「毎月セキュリティセルフチェック」">?</button>
+        </label>
+        <input type="text" name="title" required value="{{ form.title if form else '' }}"
+          class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+      </div>
+      <div>
+        <label class="flex items-center text-sm font-medium text-slate-700 mb-1">説明・目的
+          <button type="button" class="tip-btn" data-tip="チェックの目的・背景・注意事項などを記入します。回答フォームの冒頭に表示されます。">?</button>
+        </label>
+        <textarea name="description" rows="2" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">{{ form.description if form else '' }}</textarea>
+      </div>
+      <!-- 繰り返し設定（Googleカレンダー風） -->
+      <div>
+        <label class="flex items-center text-sm font-medium text-slate-700 mb-2">繰り返しパターン
+          <button type="button" class="tip-btn" data-tip="このチェックを実施する頻度パターンを選択します。Googleカレンダーの繰り返し設定と同様のイメージです。">?</button>
+        </label>
+        <div class="border border-slate-200 rounded-lg p-4 space-y-3 bg-slate-50">
+          <div class="flex items-center gap-3">
+            <label class="text-sm text-slate-700 w-24 flex-shrink-0">種類</label>
+            <select name="repeat_type" id="repeatType" onchange="updateRepeatUI()"
+              class="border border-slate-300 rounded-lg px-3 py-2 text-sm flex-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+              <option value="daily" {% if form and form.repeat_type == 'daily' %}selected{% endif %}>毎日</option>
+              <option value="weekly" {% if form and form.repeat_type == 'weekly' %}selected{% endif %}>毎週（曜日指定）</option>
+              <option value="monthly" {% if not form or form.repeat_type == 'monthly' or not form.repeat_type %}selected{% endif %}>毎月（日付指定）</option>
+              <option value="monthly_nth" {% if form and form.repeat_type == 'monthly_nth' %}selected{% endif %}>毎月（第N曜日）</option>
+              <option value="multi_month" {% if form and form.repeat_type == 'multi_month' %}selected{% endif %}>複数月</option>
+              <option value="once" {% if form and form.repeat_type == 'once' %}selected{% endif %}>一回のみ</option>
+            </select>
+          </div>
+
+          <!-- 毎週: 曜日選択 -->
+          <div id="ui_weekly" class="flex items-center gap-3" style="display:none">
+            <label class="text-sm text-slate-700 w-24 flex-shrink-0">曜日</label>
+            <div class="flex gap-2">
+              {% for wd, wl in [('mon','月'),('tue','火'),('wed','水'),('thu','木'),('fri','金'),('sat','土'),('sun','日')] %}
+              <label class="flex items-center gap-1 text-sm">
+                <input type="checkbox" name="repeat_weekdays_{{ wd }}" value="{{ wd }}"
+                  {% if form and wd in (form.repeat_weekdays or '') %}checked{% endif %}>
+                {{ wl }}
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- 毎月: 日付 -->
+          <div id="ui_monthly" class="flex items-center gap-3">
+            <label class="flex items-center text-sm text-slate-700 w-24 flex-shrink-0">実施日
+              <button type="button" class="tip-btn" data-tip="毎月何日を回答期限にするかを入力します。例：25 → 実施月の25日が期限。">?</button>
+            </label>
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-slate-600">毎月</span>
+              <input type="number" name="repeat_day" min="1" max="28"
+                value="{{ form.repeat_day if form and form.repeat_day else 25 }}"
+                class="border border-slate-300 rounded-lg px-2 py-1.5 text-sm w-16 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+              <span class="text-sm text-slate-600">日</span>
+            </div>
+          </div>
+
+          <!-- 毎月第N曜日 -->
+          <div id="ui_monthly_nth" class="flex items-center gap-3" style="display:none">
+            <label class="text-sm text-slate-700 w-24 flex-shrink-0">第N曜日</label>
+            <div class="flex items-center gap-2">
+              <span class="text-sm">第</span>
+              <select name="repeat_nth_week" class="border border-slate-300 rounded-lg px-2 py-1.5 text-sm w-16 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                {% for n in [1,2,3,4,5] %}
+                <option value="{{ n }}" {% if form and form.repeat_nth_week == n %}selected{% endif %}>{{ n }}</option>
+                {% endfor %}
+              </select>
+              <select name="repeat_nth_weekday" class="border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                {% for wd, wl in [('mon','月曜'),('tue','火曜'),('wed','水曜'),('thu','木曜'),('fri','金曜')] %}
+                <option value="{{ wd }}" {% if form and form.repeat_nth_weekday == wd %}selected{% endif %}>{{ wl }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- 複数月 -->
+          <div id="ui_multi_month" style="display:none" class="space-y-2">
+            <div class="flex items-start gap-3">
+              <label class="text-sm text-slate-700 w-24 flex-shrink-0 pt-1">実施月</label>
+              <div class="flex flex-wrap gap-2">
+                {% for m in range(1,13) %}
+                <label class="flex items-center gap-1 text-sm">
+                  <input type="checkbox" name="repeat_months_{{ m }}" value="{{ m }}"
+                    {% if form and form.repeat_months and (m|string) in form.repeat_months.split(',') %}checked{% endif %}>
+                  {{ m }}月
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <label class="text-sm text-slate-700 w-24 flex-shrink-0">実施日</label>
+              <div class="flex items-center gap-2">
+                <input type="number" name="repeat_day_multi" min="1" max="28"
+                  value="{{ form.repeat_day if form and form.repeat_day else 25 }}"
+                  class="border border-slate-300 rounded-lg px-2 py-1.5 text-sm w-16 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                <span class="text-sm text-slate-600">日</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 一回のみ -->
+          <div id="ui_once" class="flex items-center gap-3" style="display:none">
+            <label class="text-sm text-slate-700 w-24 flex-shrink-0">実施日</label>
+            <input type="date" name="repeat_once_date"
+              value="{{ form.repeat_once_date if form else '' }}"
+              class="border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- 合格ライン -->
+      <div class="flex items-center gap-4">
+        <div class="flex-1">
+          <label class="flex items-center text-sm font-medium text-slate-700 mb-1">合格ライン（点数・%）
+            <button type="button" class="tip-btn" data-tip="何点以上を合格とするかをパーセンテージで設定します。例：80 → 80点以上で合格。">?</button>
+          </label>
+          <div class="flex items-center gap-2">
+            <input type="number" name="pass_score" min="0" max="100"
+              value="{{ form.pass_score if form else 80 }}"
+              class="border border-slate-300 rounded-lg px-3 py-2 text-sm w-20 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+            <span class="text-sm text-slate-600">点以上で合格</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">全質問の合計点が合格ラインを超えると「合格」と判定されます</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="flex items-center text-sm font-medium text-slate-700 mb-1">回答対象者
+            <button type="button" class="tip-btn" data-tip="チェックを配信する対象を選択します。全員：すべてのユーザー。メンバー：一般ユーザーのみ。管理者：管理者のみ。">?</button>
+          </label>
+          <select name="target_role" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+            <option value="all" {% if not form or form.target_role == 'all' %}selected{% endif %}>全員</option>
+            <option value="member" {% if form and form.target_role == 'member' %}selected{% endif %}>メンバーのみ</option>
+            <option value="admin" {% if form and form.target_role == 'admin' %}selected{% endif %}>管理者のみ</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">有効/無効</label>
+          <select name="is_active" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+            <option value="1" {% if not form or form.is_active %}selected{% endif %}>有効</option>
+            <option value="0" {% if form and not form.is_active %}selected{% endif %}>無効</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors duration-150">
+          {% if form %}設定を保存{% else %}フォームを作成{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+
+  {% if form %}
+  <!-- 今すぐ配信 -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+    <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3">今すぐ配信</h2>
+    <p class="text-xs text-slate-500 mb-3">対象ユーザー全員（{{ form.target_role == 'all' and '全員' or (form.target_role == 'admin' and '管理者のみ' or '一般メンバーのみ') }}）に即時配信します。既に未回答のインスタンスがあるユーザーはスキップされます。</p>
+    <form method="post" action="/admin/checks/{{ form.id }}/dispatch" class="flex items-end gap-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">回答期限日</label>
+        <input type="date" name="due_date" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+      </div>
+      <button type="submit" onclick="return confirm('対象ユーザーにアンケートを配信します。よろしいですか？')"
+        class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors duration-150">
+        今すぐ配信
+      </button>
+    </form>
+  </div>
+
+  <!-- 質問一覧 -->
+  <div>
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wider">質問一覧 ({{ questions_data|length }}問)</h2>
+    </div>
+
+    {% if questions_data %}
+    <div class="space-y-3 mb-4">
+      {% for item in questions_data %}
+      {% set q = item.q %}
+      {% set opts = item.opts %}
+      <div class="bg-white rounded-lg border border-slate-200 p-4 border-l-4
+        {% if q.question_type == 'radio' %}border-l-indigo-400
+        {% elif q.question_type == 'checkbox' %}border-l-emerald-400
+        {% elif q.question_type == 'dropdown' %}border-l-purple-400
+        {% elif q.question_type == 'file' %}border-l-amber-400
+        {% elif q.question_type == 'scale' %}border-l-yellow-400
+        {% else %}border-l-slate-300{% endif %}">
+        <div class="flex items-start justify-between">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs px-2 py-0.5 rounded-full font-medium
+                {% if q.question_type == 'radio' %}bg-indigo-100 text-indigo-700
+                {% elif q.question_type == 'checkbox' %}bg-emerald-100 text-emerald-700
+                {% elif q.question_type == 'dropdown' %}bg-purple-100 text-purple-700
+                {% elif q.question_type == 'file' %}bg-amber-100 text-amber-700
+                {% elif q.question_type == 'scale' %}bg-yellow-100 text-yellow-700
+                {% elif q.question_type == 'textarea' %}bg-slate-100 text-slate-600
+                {% else %}bg-slate-100 text-slate-600{% endif %}">
+                {% if q.question_type == 'radio' %}ラジオボタン
+                {% elif q.question_type == 'checkbox' %}チェックボックス
+                {% elif q.question_type == 'dropdown' %}プルダウン
+                {% elif q.question_type == 'text' %}テキスト（一行）
+                {% elif q.question_type == 'textarea' %}テキスト（複数行）
+                {% elif q.question_type == 'file' %}ファイル添付
+                {% elif q.question_type == 'scale' %}評価スケール
+                {% endif %}
+              </span>
+              {% if q.required %}<span class="text-xs text-red-500 font-medium">必須</span>{% endif %}
+              {% if q.question_eval_type == 'manager' %}
+              <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">評価者評価</span>
+              {% else %}
+              <span class="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-medium">自己申告</span>
+              {% endif %}
+            </div>
+            <p class="font-medium text-slate-700 text-sm">Q{{ loop.index }}. {{ q.title }}{% if q.score_weight %}<span class="text-xs text-slate-400">（{{ q.score_weight }}点）</span>{% endif %}</p>
+            {% if q.description %}<p class="text-xs text-slate-500 mt-0.5">{{ q.description }}</p>{% endif %}
+            {% if opts %}
+            <div class="mt-2 flex flex-wrap gap-1">
+              {% for opt in opts %}
+              <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{{ opt }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% if q.correct_options_json and q.correct_options_json != '[]' %}
+            <p class="text-xs text-emerald-700 bg-emerald-50 rounded-lg px-2 py-1 mt-1">正解: {{ q.correct_options_json }}</p>
+            {% endif %}
+          </div>
+          <form method="post" action="/admin/checks/{{ form.id }}/questions/{{ q.id }}/delete"
+            onsubmit="return confirm('質問を削除しますか？')" class="ml-3">
+            <button type="submit" class="text-red-500 hover:text-red-700 text-xs font-medium">削除</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-slate-400 text-sm mb-4">まだ質問がありません。下のフォームから追加してください。</p>
+    {% endif %}
+
+    <!-- 質問追加フォーム -->
+    <div class="bg-slate-50 rounded-xl border border-slate-200 p-5">
+      <h3 class="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-4">＋ 質問を追加</h3>
+      <form method="post" action="/admin/checks/{{ form.id }}/questions/add" class="space-y-4" id="addQuestionForm">
+        <div>
+          <label class="flex items-center text-sm font-medium text-slate-700 mb-1">質問文 <span class="text-red-500 ml-0.5">*</span>
+            <button type="button" class="tip-btn" data-tip="回答者に表示される質問文を入力します。">?</button>
+          </label>
+          <input type="text" name="title" required placeholder="例: デスクトップに不要なファイルはありませんか？"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">補足説明</label>
+          <input type="text" name="description" placeholder="回答者への補足（任意）"
+            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="flex items-center text-sm font-medium text-slate-700 mb-1">回答形式
+              <button type="button" class="tip-btn" data-tip="ラジオ：選択肢から1つ選ぶ（単一正解）。チェックボックス：複数選択可（複数正解）。プルダウン：ドロップダウンから1つ選ぶ。">?</button>
+            </label>
+            <select name="question_type" id="qTypeSelect"
+              class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+              <option value="radio">ラジオボタン（単一選択）</option>
+              <option value="checkbox">チェックボックス（複数選択）</option>
+              <option value="dropdown">プルダウン</option>
+            </select>
+          </div>
+          <div>
+            <label class="flex items-center text-sm font-medium text-slate-700 mb-1">評価方式
+              <button type="button" class="tip-btn" data-tip="自己申告：本人が自分で回答する。評価者評価：同じ組織の責任者が部下を評価する形式。責任者フラグを持つユーザーのポータルに専用画面が表示されます。">?</button>
+            </label>
+            <select name="question_eval_type"
+              class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+              <option value="self">自己申告</option>
+              <option value="manager">評価者評価</option>
+            </select>
+          </div>
+          <div>
+            <label class="flex items-center text-sm font-medium text-slate-700 mb-1">配点（点数）
+              <button type="button" class="tip-btn" data-tip="この質問の満点を入力します。正解の選択肢を選んだ数に応じてスコアが付与されます。">?</button>
+            </label>
+            <input type="number" name="score_weight" min="0" max="100" value="10"
+              class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- 選択肢＋正解チェック -->
+        <div>
+          <label class="flex items-center text-sm font-medium text-slate-700 mb-2">選択肢と正解設定
+            <button type="button" class="tip-btn" data-tip="選択肢を追加し、正解の選択肢にチェックを入れてください。正解チェックが入っている選択肢を何個選んでいるかでスコアを計算します。">?</button>
+          </label>
+          <div id="optionsList" class="space-y-2 mb-2">
+            <!-- 初期2行 -->
+            <div class="flex items-center gap-2 option-row">
+              <input type="text" placeholder="選択肢を入力..." class="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none option-text">
+              <label class="flex items-center gap-1 text-xs text-slate-600 whitespace-nowrap cursor-pointer">
+                <input type="checkbox" class="correct-check rounded accent-indigo-600"> 正解
+              </label>
+              <button type="button" onclick="removeOption(this)" class="text-slate-300 hover:text-red-500 text-lg leading-none flex-shrink-0">×</button>
+            </div>
+            <div class="flex items-center gap-2 option-row">
+              <input type="text" placeholder="選択肢を入力..." class="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none option-text">
+              <label class="flex items-center gap-1 text-xs text-slate-600 whitespace-nowrap cursor-pointer">
+                <input type="checkbox" class="correct-check rounded accent-indigo-600"> 正解
+              </label>
+              <button type="button" onclick="removeOption(this)" class="text-slate-300 hover:text-red-500 text-lg leading-none flex-shrink-0">×</button>
+            </div>
+          </div>
+          <button type="button" onclick="addOption()"
+            class="text-indigo-600 hover:text-indigo-800 text-xs font-medium flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            選択肢を追加
+          </button>
+          <!-- Hidden inputs populated by JS before submit -->
+          <input type="hidden" name="options_json" id="optionsJsonInput" value="[]">
+          <input type="hidden" name="correct_options_json" id="correctOptionsJsonInput" value="[]">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">必須</label>
+            <select name="required" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+              <option value="1">必須</option>
+              <option value="0">任意</option>
+            </select>
+          </div>
+        </div>
+
+        <input type="hidden" name="pass_threshold" value="0">
+        <button type="submit" onclick="return buildOptionsJson()"
+          class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors duration-150">質問を追加</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function addOption() {
+  const list = document.getElementById('optionsList');
+  const row = document.createElement('div');
+  row.className = 'flex items-center gap-2 option-row';
+  row.innerHTML = `
+    <input type="text" placeholder="選択肢を入力..." class="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none option-text">
+    <label class="flex items-center gap-1 text-xs text-slate-600 whitespace-nowrap cursor-pointer">
+      <input type="checkbox" class="correct-check rounded accent-indigo-600"> 正解
+    </label>
+    <button type="button" onclick="removeOption(this)" class="text-slate-300 hover:text-red-500 text-lg leading-none flex-shrink-0">×</button>
+  `;
+  list.appendChild(row);
+}
+
+function removeOption(btn) {
+  const rows = document.querySelectorAll('.option-row');
+  if (rows.length <= 1) return;
+  btn.closest('.option-row').remove();
+}
+
+function buildOptionsJson() {
+  const rows = document.querySelectorAll('.option-row');
+  const options = [];
+  const correct = [];
+  rows.forEach(row => {
+    const text = row.querySelector('.option-text').value.trim();
+    if (!text) return;
+    options.push(text);
+    if (row.querySelector('.correct-check').checked) correct.push(text);
+  });
+  document.getElementById('optionsJsonInput').value = JSON.stringify(options);
+  document.getElementById('correctOptionsJsonInput').value = JSON.stringify(correct);
+  return true;
+}
+
+function updateRepeatUI() {
+  const type = document.getElementById('repeatType').value;
+  const ids = ['ui_weekly','ui_monthly','ui_monthly_nth','ui_multi_month','ui_once'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  const show = {
+    'daily': [], 'weekly': ['ui_weekly'], 'monthly': ['ui_monthly'],
+    'monthly_nth': ['ui_monthly_nth'], 'multi_month': ['ui_multi_month'], 'once': ['ui_once'],
+  }[type] || [];
+  show.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'flex'; });
+  if (type === 'multi_month') document.getElementById('ui_multi_month').style.display = 'block';
+}
+document.addEventListener('DOMContentLoaded', updateRepeatUI);
+</script>
+{% endblock %}

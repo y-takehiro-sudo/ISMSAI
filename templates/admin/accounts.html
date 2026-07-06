@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}サービス・アカウント管理 - ISMS管理{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-slate-900">サービス・アカウント管理</h1>
+  <a href="/admin/accounts/history" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">履歴を見る</a>
+</div>
+
+<!-- 在職状況 + アラート設定（横並び） -->
+<div class="flex gap-6 mb-8 items-start">
+  <!-- 左: 在職状況テーブル (70%) -->
+  <div class="flex-[7] min-w-0">
+    <h2 class="text-base font-semibold text-slate-700 mb-3">在職状況</h2>
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50">
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">氏名</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">ステータス</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">開始日</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">終了日（休職）</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for u in users %}
+          {% set emp = u.emp_status or "active" %}
+          <tr class="hover:bg-slate-50">
+            <td class="px-4 py-2.5 font-medium text-slate-700">{{ u.name }}</td>
+            <td class="px-4 py-2.5 text-center">
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold
+                {% if emp == 'active' %}bg-emerald-100 text-emerald-700
+                {% elif emp == 'leave' %}bg-amber-100 text-amber-700
+                {% else %}bg-red-100 text-red-700{% endif %}">
+                {% if emp == 'active' %}在職{% elif emp == 'leave' %}休職{% else %}退職{% endif %}
+              </span>
+            </td>
+            <td class="px-4 py-2.5 text-center text-slate-500 text-xs">{{ u.emp_status_start or "—" }}</td>
+            <td class="px-4 py-2.5 text-center text-slate-500 text-xs">{{ u.emp_status_end if emp == 'leave' else "—" }}</td>
+            <td class="px-4 py-2.5">
+              <details class="relative">
+                <summary class="cursor-pointer text-indigo-600 hover:text-indigo-800 text-xs font-medium">変更</summary>
+                <div class="absolute right-0 z-10 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg p-3 min-w-max">
+                  <form method="post" action="/admin/accounts/emp-status" class="space-y-2">
+                    <input type="hidden" name="user_id" value="{{ u.id }}">
+                    <div>
+                      <label class="flex items-center text-xs font-medium text-slate-600 mb-0.5">ステータス
+                        <button type="button" class="tip-btn" data-tip="在職：通常勤務中。休職：一時的に業務を離れている状態（復帰予定あり）。退職：退職済み。ステータス変更時にアラートタスクが自動生成されます。">?</button>
+                      </label>
+                      <select name="emp_status" class="border border-slate-300 rounded-lg px-2 py-1.5 text-xs w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                        <option value="active" {% if emp == 'active' %}selected{% endif %}>在職</option>
+                        <option value="leave" {% if emp == 'leave' %}selected{% endif %}>休職</option>
+                        <option value="retired" {% if emp == 'retired' %}selected{% endif %}>退職</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="flex items-center text-xs font-medium text-slate-600 mb-0.5">開始日
+                        <button type="button" class="tip-btn" data-tip="現在のステータスの開始日を入力します。">?</button>
+                      </label>
+                      <input type="date" name="emp_status_start" value="{{ u.emp_status_start or '' }}"
+                        class="border border-slate-300 rounded-lg px-2 py-1.5 text-xs w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                      <label class="flex items-center text-xs font-medium text-slate-600 mb-0.5">終了日（休職のみ）
+                        <button type="button" class="tip-btn" data-tip="休職の場合、復帰予定日を入力します。">?</button>
+                      </label>
+                      <input type="date" name="emp_status_end" value="{{ u.emp_status_end or '' }}"
+                        class="border border-slate-300 rounded-lg px-2 py-1.5 text-xs w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+                    </div>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium w-full transition-colors duration-150">更新</button>
+                  </form>
+                </div>
+              </details>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">ユーザーがいません</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- サービス管理 -->
+<div class="flex items-center justify-between mb-3 mt-8">
+  <h2 class="text-base font-semibold text-slate-700">サービス利用状況一覧</h2>
+  <details class="relative">
+    <summary class="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150">＋ サービス追加</summary>
+    <div class="absolute right-0 z-10 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg p-4 min-w-max">
+      <form method="post" action="/admin/accounts/services/add" class="space-y-2">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">サービス名</label>
+          <input type="text" name="name" required class="border border-slate-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none" placeholder="例: Google Workspace">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">説明</label>
+          <input type="text" name="description" class="border border-slate-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+        </div>
+        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium w-full transition-colors duration-150">追加</button>
+      </form>
+    </div>
+  </details>
+</div>
+
+{% if services %}
+<div class="flex flex-wrap gap-2 mb-4">
+  {% for svc in services %}
+  <div class="flex items-center gap-1 bg-slate-100 px-3 py-1.5 rounded-full text-sm text-slate-700">
+    {{ svc.name }}
+    <form method="post" action="/admin/accounts/services/{{ svc.id }}/delete" class="inline" onsubmit="return confirm('「{{ svc.name }}」を削除しますか？')">
+      <button type="submit" class="text-slate-400 hover:text-red-500 ml-1 text-xs font-bold transition-colors">×</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+  <table class="text-sm">
+    <thead class="bg-slate-50">
+      <tr>
+        <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">氏名</th>
+        {% for svc in services %}
+        <th class="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{{ svc.name }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for u in users %}
+      <tr class="hover:bg-slate-50">
+        <td class="px-4 py-2.5 font-medium text-slate-700 whitespace-nowrap">{{ u.name }}</td>
+        {% for svc in services %}
+        {% set us = us_map.get((u.id, svc.id)) %}
+        {% set st = us.status if us else "none" %}
+        <td class="px-4 py-2.5 text-center">
+          <form method="post" action="/admin/accounts/user-service/update">
+            <input type="hidden" name="user_id" value="{{ u.id }}">
+            <input type="hidden" name="service_id" value="{{ svc.id }}">
+            <input type="hidden" name="note" value="{{ us.note if us else '' }}">
+            <select name="status" onchange="this.form.submit()"
+              class="border rounded-lg px-2.5 py-1 text-xs font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer
+                {% if st == 'active' %}border-emerald-300 bg-emerald-50 text-emerald-700
+                {% elif st == 'suspended' %}border-amber-300 bg-amber-50 text-amber-700
+                {% elif st == 'deleted' %}border-red-300 bg-red-50 text-red-600
+                {% else %}border-slate-200 bg-slate-50 text-slate-500{% endif %}">
+              <option value="none" {% if st == 'none' %}selected{% endif %}>なし</option>
+              <option value="active" {% if st == 'active' %}selected{% endif %}>有効</option>
+              <option value="suspended" {% if st == 'suspended' %}selected{% endif %}>停止</option>
+              <option value="deleted" {% if st == 'deleted' %}selected{% endif %}>削除</option>
+            </select>
+          </form>
+        </td>
+        {% endfor %}
+      </tr>
+      {% else %}
+      <tr><td colspan="{{ (services|length) + 1 }}" class="px-4 py-6 text-center text-slate-400">ユーザーがいません</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自己申告フォーム - ISMS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-lg p-8 max-w-lg w-full">
+    <div class="text-center mb-6">
+      <div class="text-3xl mb-2">📋</div>
+      <h1 class="text-xl font-bold text-gray-800">自己申告チェック</h1>
+      {% if user %}<p class="text-sm text-gray-500 mt-1">{{ user.name }} さん</p>{% endif %}
+    </div>
+
+    {% if already_answered %}
+      <div class="bg-green-50 border border-green-200 rounded-lg p-5 text-center">
+        <div class="text-2xl mb-2">✅</div>
+        <p class="text-green-700 font-medium">回答済みです</p>
+        {% if answer %}
+          <div class="mt-3 text-sm text-gray-600 text-left">
+            <p><span class="font-medium">回答：</span>
+              {% if answer.answer_text == "yes" %}はい（Yes）
+              {% elif answer.answer_text == "no" %}いいえ（No）
+              {% elif answer.image_path %}📎 画像提出
+              {% else %}{{ answer.answer_text }}{% endif %}
+            </p>
+            {% set result = answer.manager_result or answer.ai_result %}
+            {% if result %}
+            <p class="mt-1"><span class="font-medium">評価：</span>
+              {% if result == "ok" %}<span class="text-green-600">✅ OK</span>
+              {% elif result == "ng" %}<span class="text-red-600">❌ NG</span>
+              {% else %}評価待ち{% endif %}
+            </p>
+            {% if (answer.manager_comment or answer.ai_comment) %}
+            <p class="mt-1 text-xs text-gray-500">{{ answer.manager_comment or answer.ai_comment }}</p>
+            {% endif %}
+            {% else %}<p class="mt-1 text-gray-400 text-sm">評価待ちです</p>{% endif %}
+          </div>
+        {% endif %}
+      </div>
+
+    {% else %}
+      {% if question %}
+      <div class="bg-blue-50 rounded-lg p-4 mb-5">
+        <h2 class="font-bold text-gray-800 mb-1">{{ question.title }}</h2>
+        {% if question.description %}<p class="text-sm text-gray-600">{{ question.description }}</p>{% endif %}
+        {% if ci.due_date %}<p class="text-xs text-gray-400 mt-1">期限: {{ ci.due_date }}</p>{% endif %}
+      </div>
+      {% endif %}
+
+      <form method="post" enctype="multipart/form-data" class="space-y-4">
+        {% if question and question.answer_type == "yes_no" %}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">回答してください</label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="flex items-center justify-center gap-2 border-2 rounded-lg p-3 cursor-pointer hover:bg-green-50 has-[:checked]:border-green-500 has-[:checked]:bg-green-50">
+              <input type="radio" name="answer_text" value="yes" required class="text-green-600">
+              <span class="font-medium text-green-700">はい（Yes）</span>
+            </label>
+            <label class="flex items-center justify-center gap-2 border-2 rounded-lg p-3 cursor-pointer hover:bg-red-50 has-[:checked]:border-red-400 has-[:checked]:bg-red-50">
+              <input type="radio" name="answer_text" value="no" class="text-red-500">
+              <span class="font-medium text-red-600">いいえ（No）</span>
+            </label>
+          </div>
+        </div>
+
+        {% elif question and question.answer_type == "image" %}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">画像を提出してください</label>
+          <input type="file" name="image" accept="image/*" required
+            class="w-full border rounded-lg px-3 py-2 text-sm">
+          <p class="text-xs text-gray-400 mt-1">PNG / JPG / スクリーンショット可</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">補足コメント（任意）</label>
+          <textarea name="answer_text" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
+        </div>
+
+        {% else %}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">回答を入力してください</label>
+          <textarea name="answer_text" rows="4" required class="w-full border rounded-lg px-3 py-2 text-sm"
+            placeholder="回答を入力..."></textarea>
+        </div>
+        {% endif %}
+
+        <button type="submit"
+          class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+          回答を送信
+        </button>
+      </form>
+    {% endif %}
+  </div>
+</body>
+</html>

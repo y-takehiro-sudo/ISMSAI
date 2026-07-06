@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ISMS管理システム{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    /* Nav active */
+    nav a.active { background: rgba(255,255,255,0.1); }
+    /* Transition */
+    * { transition-property: background-color, border-color, color, opacity; transition-duration: 150ms; }
+    /* Tooltip */
+    #tip-popup {
+      position: fixed; z-index: 9999;
+      max-width: 300px;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 0.75rem;
+      line-height: 1.6;
+      border-radius: 0.75rem;
+      padding: 0.625rem 0.875rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: opacity 150ms, transform 150ms;
+    }
+    #tip-popup.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .tip-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1rem; height: 1rem; border-radius: 50%;
+      background: #e2e8f0; color: #64748b;
+      font-size: 0.6rem; font-weight: 700;
+      cursor: pointer; border: none; outline: none;
+      vertical-align: middle; margin-left: 4px; flex-shrink: 0;
+      transition: background 150ms, color 150ms;
+    }
+    .tip-btn:hover { background: #c7d2fe; color: #4338ca; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col">
+  <!-- Top Navigation -->
+  <nav class="bg-slate-900 border-b border-slate-800 px-6 py-0 flex items-center gap-1 h-14 flex-shrink-0">
+    <!-- Logo -->
+    <div class="flex items-center gap-2.5 mr-6">
+      <div class="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center">
+        <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.955 11.955 0 013 12c0 3.313 1.343 6.315 3.513 8.494M12 3v1.25m0 15.5V21m8.25-8.25H21M3.75 12H3m15.364-5.636l-.884.884M5.636 18.364l-.884.884m12.728 0l-.884-.884M6.52 5.756l-.884-.884"/>
+        </svg>
+      </div>
+      <span class="text-white font-semibold text-sm tracking-tight">ISMS Manager</span>
+    </div>
+
+    <!-- Nav links -->
+    <div class="flex items-center gap-0.5">
+      <a href="/admin/top" class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm font-medium">HOME</a>
+      <a href="/admin/tasks" class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm font-medium">年間全体タスク</a>
+      <a href="/admin/admin-tasks" class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm font-medium">個別タスク</a>
+      <a href="/admin/checks" class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm font-medium">運用チェック</a>
+      <a href="/admin/accounts" class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm font-medium">サービス・アカウント管理</a>
+      <a href="/admin/assets" class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm font-medium">資産管理</a>
+      <a href="/admin/others" class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 text-sm font-medium">その他</a>
+    </div>
+
+    <div class="ml-auto flex items-center gap-3">
+      <a href="/user/mypage" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
+        </svg>
+        ポータルへ
+      </a>
+      <a href="/logout" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+        </svg>
+        ログアウト
+      </a>
+    </div>
+  </nav>
+
+  <!-- Tooltip popup (global) -->
+  <div id="tip-popup"></div>
+
+  <!-- Main content -->
+  <main class="flex-1 p-6 max-w-screen-2xl mx-auto w-full">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script>
+    // ── グローバルツールチップ ─────────────────────────────────
+    (function() {
+      const popup = document.getElementById('tip-popup');
+      let current = null;
+
+      function show(btn) {
+        const text = btn.getAttribute('data-tip');
+        if (!text) return;
+        popup.innerHTML = text;
+        popup.classList.add('visible');
+        current = btn;
+        reposition(btn);
+      }
+
+      function hide() {
+        popup.classList.remove('visible');
+        current = null;
+      }
+
+      function reposition(btn) {
+        // position:fixed なので getBoundingClientRect はビューポート座標をそのまま使う
+        const rect = btn.getBoundingClientRect();
+        const pw = Math.min(300, window.innerWidth - 16);
+        // アイコン直下に表示（右側に空間があれば右寄せしない）
+        let left = rect.left;
+        let top = rect.bottom + 6;
+        // 右端はみ出し防止
+        if (left + pw > window.innerWidth - 8) left = Math.max(8, window.innerWidth - pw - 8);
+        if (left < 8) left = 8;
+        // 画面下端はみ出し防止 → 上に出す
+        const popupH = 150; // 最大高さ概算
+        if (top + popupH > window.innerHeight - 8) top = rect.top - popupH - 6;
+        popup.style.left = left + 'px';
+        popup.style.top = top + 'px';
+        popup.style.maxWidth = pw + 'px';
+      }
+
+      document.addEventListener('click', function(e) {
+        const btn = e.target.closest('[data-tip]');
+        if (btn) {
+          e.stopPropagation();
+          if (current === btn) { hide(); return; }
+          show(btn);
+        } else {
+          hide();
+        }
+      });
+
+      window.addEventListener('scroll', function() {
+        if (current) reposition(current);
+      }, true);
+    })();
+  </script>
+</body>
+</html>

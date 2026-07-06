@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}年間全体タスク - ISMS管理{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-slate-900">年間全体タスク</h1>
+  <a href="/admin/tasks/new" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150">＋ 新規作成</a>
+</div>
+
+<!-- フィルター -->
+<form method="get" class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-end">
+  <div>
+    <label class="block text-xs font-medium text-slate-500 mb-1">フェーズ</label>
+    <select name="phase" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+      <option value="">すべて</option>
+      {% for p in ["定期イベント","定常業務","随時業務"] %}
+      <option value="{{ p }}" {% if filter_phase == p %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150">絞り込み</button>
+  <a href="/admin/tasks" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150">リセット</a>
+  <div class="flex items-center gap-2 self-end">
+    <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+      <input type="checkbox" name="show_completed" value="1" {% if show_completed == "1" %}checked{% endif %}
+        onchange="this.form.submit()"
+        class="rounded accent-indigo-600 w-4 h-4">
+      完了タスクも表示する
+    </label>
+  </div>
+</form>
+
+<!-- テーブル -->
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50">
+      <tr>
+        <th class="px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider w-10">#</th>
+        <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">フェーズ</th>
+        <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">項目名</th>
+        <th class="px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">期間</th>
+        <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">管理責任者</th>
+        <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">対象者</th>
+        <th class="px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">ステータス</th>
+        <th class="px-3 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for task in tasks %}
+      {% set inst = instances_map.get(task.id) %}
+      {% set is_done = inst and inst.status == "completed" %}
+      <!-- 表示行 -->
+      <tr class="hover:bg-slate-50 {% if is_done %}opacity-60{% endif %}">
+        <td class="px-3 py-2.5 text-center text-slate-400 text-xs font-mono">{{ loop.index }}</td>
+        <td class="px-3 py-2.5 text-slate-500 text-xs">{{ task.phase or "—" }}</td>
+        <td class="px-3 py-2.5">
+          <a href="/admin/tasks/{{ task.id }}" class="font-medium text-slate-800 hover:text-indigo-600 transition-colors">{{ task.name }}</a>
+          {% if task.description %}
+          <p class="text-xs text-slate-400 mt-0.5 truncate max-w-xs">{{ task.description }}</p>
+          {% endif %}
+        </td>
+        <td class="px-3 py-2.5 text-center text-xs text-slate-500 whitespace-nowrap">
+          {% if task.start_date or task.end_date %}
+          <span>{{ task.start_date or "?" }}</span><br>
+          <span class="text-slate-400">〜 {{ task.end_date or "?" }}</span>
+          {% else %}
+          <span class="text-slate-300">未設定</span>
+          {% endif %}
+        </td>
+        <td class="px-3 py-2.5 text-xs text-slate-600">
+          {{ owners_map.get(task.id, [])|join(", ") or "—" }}
+        </td>
+        <td class="px-3 py-2.5 text-xs text-slate-600">
+          {{ assignees_map.get(task.id, [])|join(", ") or "—" }}
+        </td>
+        <td class="px-3 py-2.5 text-center">
+          {% set a_count = assignee_ids_map.get(task.id, [])|length %}
+          {% set r_count = reported_count_map.get(task.id, 0) %}
+          <form method="post" action="/admin/tasks/{{ task.id }}/toggle-complete" class="inline">
+            <button type="submit"
+              class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors
+                {% if is_done %}bg-emerald-100 text-emerald-700 hover:bg-emerald-200{% else %}bg-slate-100 text-slate-500 hover:bg-slate-200{% endif %}">
+              {% if is_done %}
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+              完了
+              {% else %}
+              <span class="w-3 h-3 rounded-full border-2 border-slate-300 inline-block"></span>
+              未完了
+              {% endif %}
+            </button>
+          </form>
+          {% if a_count > 0 %}
+          <div class="text-xs mt-1 {% if r_count == a_count %}text-emerald-600 font-medium{% else %}text-slate-400{% endif %}">
+            {{ r_count }}/{{ a_count }}人
+          </div>
+          {% endif %}
+        </td>
+        <td class="px-3 py-2.5">
+          <div class="flex items-center gap-1 justify-end">
+            <!-- 詳細ページ -->
+            <a href="/admin/tasks/{{ task.id }}"
+              class="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors" title="対応状況を見る">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+            </a>
+            <!-- インライン編集トグル -->
+            <button type="button" onclick="toggleEdit('{{ task.id }}')"
+              class="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors" title="編集">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
+            </button>
+            <!-- 複製 -->
+            <form method="post" action="/admin/tasks/{{ task.id }}/duplicate" class="inline">
+              <button type="submit" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors" title="複製">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75"/></svg>
+              </button>
+            </form>
+            <!-- 削除 -->
+            <form method="post" action="/admin/tasks/{{ task.id }}/delete" class="inline" onsubmit="return confirm('「{{ task.name }}」を削除しますか？')">
+              <button type="submit" class="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" title="削除">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+              </button>
+            </form>
+          </div>
+        </td>
+      </tr>
+
+      <!-- インライン編集行 -->
+      <tr id="edit-row-{{ task.id }}" class="hidden bg-indigo-50">
+        <td colspan="8" class="px-4 py-4">
+          <form method="post" action="/admin/tasks/{{ task.id }}/inline-update" class="space-y-3">
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">フェーズ</label>
+                <select name="phase" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+                  {% for p in ["定期イベント","定常業務","随時業務"] %}
+                  <option value="{{ p }}" {% if task.phase == p %}selected{% endif %}>{{ p }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">開始日</label>
+                <input type="date" name="start_date" value="{{ task.start_date or '' }}"
+                  class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">終了日</label>
+                <input type="date" name="end_date" value="{{ task.end_date or '' }}"
+                  class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">項目名 <span class="text-red-500">*</span></label>
+              <input type="text" name="name" value="{{ task.name }}" required
+                class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">作業内容・備考</label>
+              <textarea name="description" rows="2"
+                class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white">{{ task.description or '' }}</textarea>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">外部リンクURL（着手ボタン用）</label>
+              <input type="url" name="url" value="{{ task.url or '' }}"
+                class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white"
+                placeholder="https://docs.google.com/spreadsheets/...">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-xs font-medium text-slate-600">管理責任者（複数可）</label>
+                  <label class="flex items-center gap-1 text-xs text-slate-500 cursor-pointer">
+                    <input type="checkbox" onchange="selectAll(this,'owner-{{ task.id }}')" class="rounded accent-indigo-600">全員
+                  </label>
+                </div>
+                <select id="owner-{{ task.id }}" name="owner_ids" multiple class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white h-20">
+                  {% for u in users %}
+                  <option value="{{ u.id }}" {% if u.id in owner_ids_map.get(task.id, []) %}selected{% endif %}>{{ u.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-xs font-medium text-slate-600">対象者（複数可）</label>
+                  <label class="flex items-center gap-1 text-xs text-slate-500 cursor-pointer">
+                    <input type="checkbox" onchange="selectAll(this,'assignee-{{ task.id }}')" class="rounded accent-indigo-600">全員
+                  </label>
+                </div>
+                <select id="assignee-{{ task.id }}" name="assignee_ids" multiple class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none bg-white h-20">
+                  {% for u in users %}
+                  <option value="{{ u.id }}" {% if u.id in assignee_ids_map.get(task.id, []) %}selected{% endif %}>{{ u.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="flex gap-2 pt-1">
+              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors">保存</button>
+              <button type="button" onclick="toggleEdit('{{ task.id }}')"
+                class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors">キャンセル</button>
+            </div>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="px-4 py-10 text-center text-slate-400">タスクがありません。「＋ 新規作成」から追加してください。</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+function toggleEdit(taskId) {
+  const row = document.getElementById('edit-row-' + taskId);
+  if (row) row.classList.toggle('hidden');
+}
+function selectAll(cb, selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  Array.from(sel.options).forEach(o => o.selected = cb.checked);
+}
+</script>
+{% endblock %}

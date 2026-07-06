@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}操作ログ{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-slate-900">操作ログ</h1>
+  <span class="text-sm text-slate-400">{{ logs|length }}件表示</span>
+</div>
+
+<!-- フィルター -->
+<form method="get" class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-end">
+  <div>
+    <label class="block text-xs font-medium text-slate-500 mb-1">ユーザー</label>
+    <select name="user_id" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+      <option value="">全員</option>
+      {% for u in users %}
+      <option value="{{ u.id }}" {% if filter_user == u.id %}selected{% endif %}>{{ u.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="block text-xs font-medium text-slate-500 mb-1">操作種別</label>
+    <select name="action" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none">
+      <option value="">すべて</option>
+      {% for a in actions %}
+      <option value="{{ a }}" {% if filter_action == a %}selected{% endif %}>
+        {{ action_labels.get(a, (a, ""))[0] }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150">絞り込み</button>
+  <a href="/admin/audit-logs" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium self-end">リセット</a>
+</form>
+
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50">
+      <tr>
+        <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">日時</th>
+        <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">操作者</th>
+        <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">操作</th>
+        <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">対象</th>
+        <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">詳細</th>
+        <th class="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">IPアドレス</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for row in logs %}
+      <tr class="hover:bg-slate-50">
+        <td class="px-3 py-2.5 text-xs text-slate-400 whitespace-nowrap">
+          {{ row.log.created_at[:16].replace("T"," ") if row.log.created_at else "—" }}
+        </td>
+        <td class="px-3 py-2.5 font-medium text-slate-700">{{ row.log.user_name or "—" }}</td>
+        <td class="px-3 py-2.5">
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold
+            {% if row.color == 'green' %}bg-emerald-100 text-emerald-700
+            {% elif row.color == 'red' %}bg-red-100 text-red-700
+            {% elif row.color == 'blue' %}bg-indigo-100 text-indigo-700
+            {% elif row.color == 'purple' %}bg-purple-100 text-purple-700
+            {% elif row.color == 'orange' %}bg-amber-100 text-amber-700
+            {% else %}bg-slate-100 text-slate-600{% endif %}">
+            {{ row.label }}
+          </span>
+        </td>
+        <td class="px-3 py-2.5 text-slate-500 text-xs">{{ row.log.target or "—" }}</td>
+        <td class="px-3 py-2.5 text-slate-600 text-xs max-w-xs truncate">{{ row.log.detail or "—" }}</td>
+        <td class="px-3 py-2.5 text-slate-400 text-xs font-mono">{{ row.log.ip_address or "—" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="px-3 py-8 text-center text-slate-400">ログがありません</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
