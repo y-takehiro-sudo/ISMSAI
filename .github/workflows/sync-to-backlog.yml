@@ -1,0 +1,26 @@
+name: Sync to Backlog
+
+on:
+  workflow_dispatch:  # GitHub上で手動実行
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push all branches to Backlog
+        env:
+          BACKLOG_USER: ${{ secrets.BACKLOG_USER }}
+          BACKLOG_PASSWORD: ${{ secrets.BACKLOG_PASSWORD }}
+        run: |
+          git remote add backlog https://${BACKLOG_USER}:${BACKLOG_PASSWORD}@ha-human.backlog.jp/git/ALLDX_DEV_REPO/ISMSAI.git
+          git push backlog --all --force
+          git push backlog --tags --force
