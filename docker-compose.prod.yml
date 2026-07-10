@@ -15,8 +15,8 @@ services:
       # 開発課から割り当てられたポート番号に変更すること（例: 18001:8000）
       - "8000:8000"
     volumes:
-      # DBはホスト側に永続化（コンテナ再起動してもデータが消えない）
-      - /opt/isms/data/isms.db:/app/isms.db
+      # DBはディレクトリ単位でマウント（ファイル指定するとDockerがディレクトリを作成してしまうため）
+      - /opt/isms/data:/app/data
       # ログをホスト側から確認できるようにマウント
       - /opt/isms/logs:/app/logs
       # アップロードファイルを永続化
@@ -26,6 +26,8 @@ services:
     environment:
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8000
+      # DBファイルをマウントしたディレクトリ内に配置
+      - DB_PATH=/app/data/isms.db
     # 本番ではreloadなし・workersは1（SQLiteはシングルプロセス推奨）
     command: >
       python -m uvicorn main:app

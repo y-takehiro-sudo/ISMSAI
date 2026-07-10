@@ -27,6 +27,10 @@ __pycache__/
 *.md
 test_*.py
 insert_test_data.py
+# マイグレーションスクリプトはイメージに含めない
+migrate_*.py
+backfill_*.py
+clear_backfill_*.py
 
 # IDE
 .vscode/

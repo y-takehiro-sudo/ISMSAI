@@ -20,10 +20,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # ログ・アップロードディレクトリを作成
-RUN mkdir -p logs uploads
+RUN mkdir -p logs uploads data scripts
+
+# エントリーポイントスクリプトに実行権限を付与
+RUN chmod +x docker-entrypoint.sh
 
 # 起動ポート
 EXPOSE 8000
+
+ENTRYPOINT ["./docker-entrypoint.sh"]
 
 # 起動コマンド
 # main.py の __main__ ではなく uvicorn を直接呼び出す（本番推奨）
